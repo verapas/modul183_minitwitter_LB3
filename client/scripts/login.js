@@ -18,8 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (data?.username) {
       localStorage.setItem("user", JSON.stringify(data));
       window.location.href = "/";
+    } else if (data?.error) {
+      errorText.innerText = data.error;
     } else {
-      errorText.innerText = data;
+      errorText.innerText = "Unbekannter Fehler";
     }
   });
 });
