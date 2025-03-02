@@ -4,9 +4,9 @@ const { initializeDatabase, queryDB, insertDB } = require("./database");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const AesEncryption = require("aes-encryption");
-const aesSecret = process.env.AES_SECRET ? process.env.AES_SECRET.trim() : "";
 const aes = new AesEncryption();
-aes.setSecretKey(aesSecret);
+require('dotenv').config();
+aes.setSecretKey(process.env.AES_SECRET);
 const secretKey = process.env.SECRET_KEY;
 let db;
 
@@ -80,7 +80,7 @@ const getFeed = async (req, res) => {
     const decryptedTweets = tweets.map(tweet => {
       return {
         ...tweet,
-        text: aes.decrypt(tweet.text)  // Entschlüsselt den gespeicherten Text
+        text: tweet.text ? aes.decrypt(tweet.text) : null
       };
     });
     res.json(decryptedTweets);
