@@ -1,18 +1,27 @@
 const { body, validationResult } = require("express-validator");
 const { initializeDatabase, queryDB, insertDB } = require("./database");
+const bcrypt = require("bcrypt");
 
 let db;
 
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
-    const user = await queryDB(db, query);
-    if (user.length === 1) {
-      res.json(user[0]);
-    } else {
-      res.json({ error: "Ungültige Anmeldedaten" });
+    // Holt Benutzer anhand des Benutzernamens
+    const query = `SELECT * FROM users WHERE username = '${username}'`;
+    const users = await queryDB(db, query);
+    if (users.length !== 1) {
+      return res.json({ error: "Ungültige Anmeldedaten" });
     }
+    const user = users[0];
+    // Vergleicht das eingegebene Passwort mit dem gehashten Passwort in der DB
+    const passwordMatches = await bcrypt.compare(password, user.password);
+    if (!passwordMatches) {
+      return res.json({ error: "Ungültige Anmeldedaten" });
+    }
+    // Entfernt das Passwort, bevor du den Benutzer zurückgibst
+    delete user.password;
+    res.json(user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Interner Serverfehler" });

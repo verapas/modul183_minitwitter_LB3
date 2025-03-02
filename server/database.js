@@ -15,11 +15,8 @@ const createUsersTable = `CREATE TABLE users (
   username TEXT,
   password TEXT
 )`;
-const seedUsersTable = `INSERT INTO users (username, password) VALUES
-  ('switzerchees', '123456'),
-  ('john', '123456'),
-  ('jane', '123456')
-`;
+
+
 
 const initializeDatabase = async () => {
   const db = new sqlite3.Database("./minitwitter.db");
@@ -36,7 +33,6 @@ const initializeDatabase = async () => {
       if (!row) {
         db.run(createUsersTable, [], async (err) => {
           if (err) return console.error(err.message);
-          db.run(seedUsersTable);
         });
       }
     });
