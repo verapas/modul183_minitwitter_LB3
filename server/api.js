@@ -7,24 +7,24 @@ let db;
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    // Holt Benutzer anhand des Benutzernamens
+    // Benutzer anhand des Benutzernamens abfragen
     const query = `SELECT * FROM users WHERE username = '${username}'`;
     const users = await queryDB(db, query);
     if (users.length !== 1) {
-      return res.json({ error: "Ungültige Anmeldedaten" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
     const user = users[0];
-    // Vergleicht das eingegebene Passwort mit dem gehashten Passwort in der DB
+    // Passwortvergleich mittels bcrypt
     const passwordMatches = await bcrypt.compare(password, user.password);
     if (!passwordMatches) {
-      return res.json({ error: "Ungültige Anmeldedaten" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
-    // Entfernt das Passwort, bevor du den Benutzer zurückgibst
+    // Optional: Passwort aus dem Objekt entfernen, bevor der Benutzer zurückgegeben wird
     delete user.password;
     res.json(user);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Interner Serverfehler" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
