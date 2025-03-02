@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
       body: JSON.stringify({ username, password }),
     });
     const data = await response.json();
-    if (data?.username) {
+    if (data?.token) {
       localStorage.setItem("user", JSON.stringify(data));
       window.location.href = "/";
     } else if (data?.error) {
@@ -24,4 +24,5 @@ document.addEventListener("DOMContentLoaded", () => {
       errorText.innerText = "Unbekannter Fehler";
     }
   });
+
 });
