@@ -58,14 +58,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const postTweet = async () => {
     const text = newTweetInput.value;
-    if (!text.trim()) return;
+    if (!text.trim()) return; // Leere Eingabe vermeiden
     await fetch("/api/feed", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${user.token}`
       },
-      body: JSON.stringify({ text }),  // Nur der Text wird gesendet
+      body: JSON.stringify({ text }),
     });
     await getFeed();
     newTweetInput.value = "";

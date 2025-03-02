@@ -1,11 +1,18 @@
+require('dotenv').config();
 const { body, validationResult } = require("express-validator");
 const { initializeDatabase, queryDB, insertDB } = require("./database");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
-const secretKey = process.env.SECRET_KEY || "your_secret_key";
+const AesEncryption = require("aes-encryption");
+const aesSecret = process.env.AES_SECRET ? process.env.AES_SECRET.trim() : "";
+const aes = new AesEncryption();
+aes.setSecretKey(aesSecret);
+const secretKey = process.env.SECRET_KEY;
 let db;
 
+
+console.log("AES_SECRET:", process.env.AES_SECRET);
+console.log("Verwendeter Schlüssel:", secretKey);
 // Middleware zur Token-Authentifizierung
 async function authenticateToken(req, res, next) {
   try {
@@ -17,13 +24,15 @@ async function authenticateToken(req, res, next) {
     if (!token) {
       return res.status(401).json({ message: "Unauthorized: Token fehlt" });
     }
-    const decoded = await new Promise((resolve, reject) => {
+    req.user = await new Promise((resolve, reject) => {
       jwt.verify(token, secretKey, (err, decoded) => {
-        if (err) reject(err);
-        else resolve(decoded);
+        if (err) {
+          reject(err);
+        } else {
+          resolve(decoded);
+        }
       });
     });
-    req.user = decoded;
     next();
   } catch (err) {
     return res.status(403).json({ message: "Forbidden: Ungültiges Token" });
@@ -65,10 +74,16 @@ const login = async (req, res) => {
 
 const getFeed = async (req, res) => {
   try {
-    // Fester Query, der ausschließlich auf der Serverseite definiert ist
     const query = "SELECT * FROM tweets ORDER BY id DESC";
     const tweets = await queryDB(db, query);
-    res.json(tweets);
+    // Entschlüssele den Text jedes Tweets
+    const decryptedTweets = tweets.map(tweet => {
+      return {
+        ...tweet,
+        text: aes.decrypt(tweet.text)  // Entschlüsselt den gespeicherten Text
+      };
+    });
+    res.json(decryptedTweets);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Interner Serverfehler" });
@@ -76,15 +91,23 @@ const getFeed = async (req, res) => {
 };
 
 
+
 const postTweet = async (req, res) => {
   try {
+    // req.body.text enthält den Klartext des Tweets
     const { text } = req.body;
-    // Hier erstellt der Server die SQL-Query auf Basis der übermittelten Daten:
+    if (!text || text.trim() === "") {
+      return res.status(400).json({ error: "Tweet text is required" });
+    }
+    // Holt den Benutzernamen aus dem Token
     const username = req.user.username;
     const timestamp = new Date().toISOString();
-    const query = `INSERT INTO tweets (username, timestamp, text) VALUES (?, ?, ?)`;
-    // Nutze z. B. Prepared Statements oder entsprechende Funktionen, um SQL-Injection zu verhindern
-    await insertDB(db, query, [username, timestamp, text]);
+    // Verschlüssele den Tweet-Text
+    const encryptedText = aes.encrypt(text);
+    // Erstellt die SQL-Query auf der Serverseite
+    const query = "INSERT INTO tweets (username, timestamp, text) VALUES (?, ?, ?)";
+
+    await insertDB(db, query, [username, timestamp, encryptedText]);
     res.json({ status: "ok" });
   } catch (err) {
     console.error(err);
@@ -103,7 +126,13 @@ const initializeAPI = async (app) => {
 
   app.post(
       "/api/feed",
-      [body("query").trim().notEmpty().withMessage("Query darf nicht leer sein")],
+      authenticateToken,  // Middleware hinzufügen
+      [
+        body("text")
+            .trim()
+            .notEmpty()
+            .withMessage("Text darf nicht leer sein")
+      ],
       async (req, res) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -112,6 +141,7 @@ const initializeAPI = async (app) => {
         await postTweet(req, res);
       }
   );
+
 
   app.post(
       "/api/login",
