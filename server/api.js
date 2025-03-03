@@ -72,6 +72,39 @@ const login = async (req, res) => {
   }
 };
 
+const register = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required" });
+    }
+
+    // Prüfen, ob der Benutzer bereits existiert
+    const checkQuery = "SELECT * FROM users WHERE username = ?";
+    const existingUsers = await queryDB(db, checkQuery, [username]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    // Passwort hashen
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Benutzer in der Datenbank einfügen
+    const insertQuery = "INSERT INTO users (username, password) VALUES (?, ?)";
+    await insertDB(db, insertQuery, [username, hashedPassword]);
+
+    res.json({ status: "registered" });
+  } catch (error) {
+    // Wenn der UNIQUE-Constraint fehlschlägt, sende eine entsprechende Fehlermeldung
+    if (error.code === 'SQLITE_CONSTRAINT') {
+      return res.status(400).json({ error: "User already exists" });
+    }
+    console.error(error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
 const getFeed = async (req, res) => {
   try {
     const query = "SELECT * FROM tweets ORDER BY id DESC";
@@ -142,12 +175,26 @@ const initializeAPI = async (app) => {
       }
   );
 
+  app.post(
+      "/api/register",
+      [
+        body("username").isLength({ min: 6 }).withMessage("Username must be at least 6 characters long").trim().escape(),
+        body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters long").trim()
+      ],
+      async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+        }
+        await register(req, res);
+      }
+  );
 
   app.post(
       "/api/login",
       [
-        body("username").trim().escape().notEmpty().withMessage("Username darf nicht leer sein"),
-        body("password").trim().escape().notEmpty().withMessage("Password darf nicht leer sein")
+        body("username").trim().escape().notEmpty().withMessage("Username is required"),
+        body("password").trim().escape().notEmpty().withMessage("Password is required")
       ],
       async (req, res) => {
         const errors = validationResult(req);
