@@ -3,6 +3,7 @@ const http = require("http");
 const { initializeAPI } = require("./api");
 const rateLimit = require("express-rate-limit"); // Neuer Import
 require('dotenv').config();
+const pino = require('pino-http')()
 
 
 // Create the express server
@@ -10,12 +11,15 @@ const app = express();
 app.use(express.json());
 const server = http.createServer(app);
 
+// Pino-HTTP Middleware einbinden
+app.use(pino);
+
 app.disable('x-powered-by');
 
-// Rate limiter für den Login-Endpoint
+// Rate limiter
 const loginLimiter = rateLimit({
-  windowMs: 60 * 1000 , // 10 Minute
-  max: 50, // Maximal 10 Anfragen alle 10 minuten
+  windowMs: 60 * 1000 ,
+  max: 50,
   message: "Zu viele Anfragen, bitte versuchen Sie es in einer Minute erneut."
 });
 app.use("/api/login", loginLimiter);

@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const postTweetButton = document.getElementById("post-tweet");
   const logoutButton = document.getElementById("logout");
 
-  // Benutzer aus localStorage laden
+  // load user from local storage
   const user = JSON.parse(localStorage.getItem("user"));
   if (!user) {
     window.location.href = "/login.html";

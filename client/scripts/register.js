@@ -32,10 +32,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
             if (response.ok) {
-                // Zeige eine Erfolgsmeldung an
                 errorText.style.color = "lightgreen";
                 errorText.innerText = "Registration successful! Redirecting to login in a moment...";
-                // Weiterleitung nach kurzer Verzögerung (z. B. 2 Sekunden)
+
                 setTimeout(() => {
                     window.location.href = "/login.html";
                 }, 2000);
