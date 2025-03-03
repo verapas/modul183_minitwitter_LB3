@@ -10,6 +10,7 @@ const app = express();
 app.use(express.json());
 const server = http.createServer(app);
 
+app.disable('x-powered-by');
 
 // Rate limiter für den Login-Endpoint
 const loginLimiter = rateLimit({
