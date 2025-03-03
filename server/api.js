@@ -11,18 +11,16 @@ const secretKey = process.env.SECRET_KEY;
 let db;
 
 
-console.log("AES_SECRET:", process.env.AES_SECRET);
-console.log("Verwendeter Schlüssel:", secretKey);
 // Middleware zur Token-Authentifizierung
 async function authenticateToken(req, res, next) {
   try {
     const authHeader = req.headers["authorization"];
     if (!authHeader) {
-      return res.status(401).json({ message: "Unauthorized: Token fehlt" });
+      return res.status(401).json({ message: "Unauthorized: Token missing" });
     }
     const token = authHeader.split(" ")[1];
     if (!token) {
-      return res.status(401).json({ message: "Unauthorized: Token fehlt" });
+      return res.status(401).json({ message: "Unauthorized: Token missing" });
     }
     req.user = await new Promise((resolve, reject) => {
       jwt.verify(token, secretKey, (err, decoded) => {
@@ -35,7 +33,7 @@ async function authenticateToken(req, res, next) {
     });
     next();
   } catch (err) {
-    return res.status(403).json({ message: "Forbidden: Ungültiges Token" });
+    return res.status(403).json({ message: "Forbidden: invalid Token" });
   }
 }
 
@@ -107,21 +105,22 @@ const register = async (req, res) => {
 
 const getFeed = async (req, res) => {
   try {
-    const query = "SELECT * FROM tweets ORDER BY id DESC";
-    const tweets = await queryDB(db, query);
-    // Entschlüssele den Text jedes Tweets
-    const decryptedTweets = tweets.map(tweet => {
-      return {
-        ...tweet,
-        text: tweet.text ? aes.decrypt(tweet.text) : null
-      };
-    });
+    // nur Tweets des angemeldeten Benutzers laden
+    const query = "SELECT * FROM tweets WHERE username = ? ORDER BY id DESC";
+    const tweets = await queryDB(db, query, [req.user.username]);
+
+    // Entschlüsselt den Text jedes Tweets
+    const decryptedTweets = tweets.map(tweet => ({
+      ...tweet,
+      text: tweet.text ? aes.decrypt(tweet.text) : null
+    }));
     res.json(decryptedTweets);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Interner Serverfehler" });
   }
 };
+
 
 
 
@@ -135,7 +134,7 @@ const postTweet = async (req, res) => {
     // Holt den Benutzernamen aus dem Token
     const username = req.user.username;
     const timestamp = new Date().toISOString();
-    // Verschlüssele den Tweet-Text
+    // Verschlüsselt den Tweet-Text
     const encryptedText = aes.encrypt(text);
     // Erstellt die SQL-Query auf der Serverseite
     const query = "INSERT INTO tweets (username, timestamp, text) VALUES (?, ?, ?)";
@@ -144,7 +143,7 @@ const postTweet = async (req, res) => {
     res.json({ status: "ok" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Interner Serverfehler" });
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -159,7 +158,7 @@ const initializeAPI = async (app) => {
 
   app.post(
       "/api/feed",
-      authenticateToken,  // Middleware hinzufügen
+      authenticateToken,
       [
         body("text")
             .trim()
